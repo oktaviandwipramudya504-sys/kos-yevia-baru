@@ -6,19 +6,29 @@ from functools import wraps
 app = Flask(__name__)
 app.secret_key = 'kunci_rahasia_kos_yevia_2026'
 
-UPLOAD_FOLDER = 'static/uploads'
+# Gunakan folder /tmp untuk Vercel (karena bersifat read-only di root)
+# Jika di komputer lokal, akan otomatis membuat folder lokal
+if os.environ.get('VERCEL'):
+    DATA_FILE = '/tmp/data_kos.json'
+    UPLOAD_FOLDER = '/tmp/uploads'
+else:
+    DATA_FILE = 'data_kos.json'
+    UPLOAD_FOLDER = 'static/uploads'
+
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "123"
 
-DATA_FILE = 'data_kos.json'
-
 def load_data():
     if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
+        try:
+            with open(DATA_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except:
+            pass
+    # Data awal default jika file belum ada di /tmp
     return {"kamar": [], "penghuni": [], "keuangan": []}
 
 def save_data(data):
@@ -123,20 +133,17 @@ def hapus_penghuni(penghuni_id):
     data = load_data()
     target_penghuni = None
     
-    # Cari nama penghuni yang akan dihapus berdasarkan ID
     for p in data['penghuni']:
         if p.get('id') == penghuni_id:
             target_penghuni = p
             break
             
     if target_penghuni:
-        # Kosongkan status kamar yang bersangkutan
         for k in data['kamar']:
             if k['nomor'] == target_penghuni['kamar']:
                 k['status'] = 'Kosong'
                 k['penghuni'] = '-'
                 
-    # Hapus data penghuni dari list
     data['penghuni'] = [p for p in data['penghuni'] if p.get('id') != penghuni_id]
     save_data(data)
     return redirect(url_for('penghuni'))
