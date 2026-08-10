@@ -29,15 +29,8 @@
                             <input type="text" class="form-control form-control-sm" name="nama" placeholder="Nama penghuni" required>
                         </div>
                         <div class="mb-2">
-                            <label class="form-label small text-muted">Pilih Kamar</label>
-                            <select class="form-select form-select-sm" name="kamar" required>
-                                <option value="" disabled selected>-- Pilih Kamar --</option>
-                                {% for k in kamar_list %}
-                                    {% if k.status == 'Kosong' %}
-                                        <option value="{{ k.nomor }}">{{ k.nomor }}</option>
-                                    {% endif %}
-                                {% endfor %}
-                            </select>
+                            <label class="form-label small text-muted">Nomor Kamar</label>
+                            <input type="text" class="form-control form-control-sm" name="kamar" placeholder="Cth: 01" required>
                         </div>
                         <div class="mb-2">
                             <label class="form-label small text-muted">No. WhatsApp / Telepon</label>
