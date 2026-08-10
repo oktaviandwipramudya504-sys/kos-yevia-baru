@@ -6,9 +6,19 @@ from functools import wraps
 app = Flask(__name__)
 app.secret_key = 'kunci_rahasia_kos_yevia_2026'
 
-UPLOAD_FOLDER = 'static/uploads'
+# Cek apakah sedang berjalan di Vercel atau lokal
+if os.environ.get('VERCEL'):
+    UPLOAD_FOLDER = '/tmp/uploads'
+else:
+    UPLOAD_FOLDER = 'static/uploads'
+
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# Hanya buat folder jika direktori diizinkan (mencegah error Read-only di Vercel)
+try:
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+except Exception:
+    pass
 
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "123"
@@ -154,6 +164,7 @@ def keuangan():
         if file and file.filename != '':
             filename = file.filename
             try:
+                os.makedirs(UPLOAD_FOLDER, exist_ok=True)
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
             except Exception:
                 pass
