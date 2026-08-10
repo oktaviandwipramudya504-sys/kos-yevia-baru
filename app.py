@@ -37,7 +37,7 @@ def index():
 @app.route('/kamar')
 @login_required
 def kamar():
-    return "<h1>Halaman Kelola Kamar (Segera Dibangun)</h1><a href='/'>Kembali ke Dashboard</a>"
+    return render_template('kamar.html')
 
 # Rute Data Penghuni
 @app.route('/penghuni')
