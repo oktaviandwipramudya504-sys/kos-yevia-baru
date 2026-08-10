@@ -4,8 +4,11 @@ import os
 
 app = Flask(__name__)
 
-# File JSON untuk menyimpan data secara lokal
-DATA_FILE = 'data_kos.json'
+# Konfigurasi path file JSON: menggunakan /tmp jika di Vercel, lokal jika di laptop
+if os.environ.get('VERCEL'):
+    DATA_FILE = '/tmp/data_kos.json'
+else:
+    DATA_FILE = 'data_kos.json'
 
 def load_data():
     if not os.path.exists(DATA_FILE):
