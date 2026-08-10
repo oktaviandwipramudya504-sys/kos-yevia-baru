@@ -6,8 +6,7 @@ from functools import wraps
 app = Flask(__name__)
 app.secret_key = 'kunci_rahasia_kos_yevia_2026'
 
-# Gunakan folder /tmp untuk Vercel (karena bersifat read-only di root)
-# Jika di komputer lokal, akan otomatis membuat folder lokal
+# Tentukan path file dan folder
 if os.environ.get('VERCEL'):
     DATA_FILE = '/tmp/data_kos.json'
     UPLOAD_FOLDER = '/tmp/uploads'
@@ -22,18 +21,26 @@ ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "123"
 
 def load_data():
-    if os.path.exists(DATA_FILE):
-        try:
+    try:
+        if os.path.exists(DATA_FILE):
             with open(DATA_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except:
-            pass
-    # Data awal default jika file belum ada di /tmp
-    return {"kamar": [], "penghuni": [], "keuangan": []}
+                content = f.read()
+                if content.strip():
+                    return json.loads(content)
+        
+        # Jika file belum ada atau kosong, buat default dan simpan
+        default_data = {"kamar": [], "penghuni": [], "keuangan": []}
+        save_data(default_data)
+        return default_data
+    except Exception as e:
+        return {"kamar": [], "penghuni": [], "keuangan": []}
 
 def save_data(data):
-    with open(DATA_FILE, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
+    try:
+        with open(DATA_FILE, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=4, ensure_ascii=False)
+    except Exception as e:
+        print(f"Error saving data: {e}")
 
 def login_required(f):
     @wraps(f)
@@ -62,8 +69,8 @@ def logout():
 @login_required
 def index():
     data = load_data()
-    total_kamar = len(data['kamar'])
-    terisi = sum(1 for k in data['kamar'] if k['status'] == 'Terisi')
+    total_kamar = len(data.get('kamar', []))
+    terisi = sum(1 for k in data.get('kamar', []) if k.get('status') == 'Terisi')
     kosong = total_kamar - terisi
     return render_template('index.html', total=total_kamar, terisi=terisi, kosong=kosong)
 
@@ -161,7 +168,10 @@ def keuangan():
         filename = None
         if file and file.filename != '':
             filename = file.filename
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            try:
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            except Exception:
+                pass
             
         new_entry = {
             "id": len(data['keuangan']) + 1,
