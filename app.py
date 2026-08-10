@@ -6,41 +6,26 @@ from functools import wraps
 app = Flask(__name__)
 app.secret_key = 'kunci_rahasia_kos_yevia_2026'
 
-# Tentukan path file dan folder
-if os.environ.get('VERCEL'):
-    DATA_FILE = '/tmp/data_kos.json'
-    UPLOAD_FOLDER = '/tmp/uploads'
-else:
-    DATA_FILE = 'data_kos.json'
-    UPLOAD_FOLDER = 'static/uploads'
-
+UPLOAD_FOLDER = 'static/uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "123"
 
+# Storage in-memory global yang aman untuk serverless Vercel
+IN_MEMORY_DB = {
+    "kamar": [],
+    "penghuni": [],
+    "keuangan": []
+}
+
 def load_data():
-    try:
-        if os.path.exists(DATA_FILE):
-            with open(DATA_FILE, 'r', encoding='utf-8') as f:
-                content = f.read()
-                if content.strip():
-                    return json.loads(content)
-        
-        # Jika file belum ada atau kosong, buat default dan simpan
-        default_data = {"kamar": [], "penghuni": [], "keuangan": []}
-        save_data(default_data)
-        return default_data
-    except Exception as e:
-        return {"kamar": [], "penghuni": [], "keuangan": []}
+    return IN_MEMORY_DB
 
 def save_data(data):
-    try:
-        with open(DATA_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=4, ensure_ascii=False)
-    except Exception as e:
-        print(f"Error saving data: {e}")
+    global IN_MEMORY_DB
+    IN_MEMORY_DB = data
 
 def login_required(f):
     @wraps(f)

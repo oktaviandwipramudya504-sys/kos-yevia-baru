@@ -1,14 +1,5 @@
 {
-    "kamar": [
-        {
-            "id": 1,
-            "nomor": "1",
-            "status": "Kosong",
-            "penghuni": "-",
-            "harga": "800000",
-            "fasilitas": "ac"
-        }
-    ],
+    "kamar": [],
     "penghuni": [],
     "keuangan": []
 }
