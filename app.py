@@ -6,9 +6,9 @@ app = Flask(__name__)
 # PENTING: Ganti dengan string acak yang aman untuk enkripsi session
 app.secret_key = 'kunci_rahasia_anda_yang_sangat_aman'
 
-# Konfigurasi username dan password sederhana (bisa juga diambil dari Database/Environment Variable)
+# Konfigurasi username dan password sederhana
 ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD = "123"  # Ubah nanti sesuai keinginan
+ADMIN_PASSWORD = "123"
 
 # Dekorator untuk memproteksi halaman agar butuh login
 def login_required(f):
@@ -19,12 +19,37 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# Rute Utama (Diproteksi)
+# Rute Utama / Dashboard (Diproteksi)
 @app.route('/')
 @login_required
 def index():
-    # Logika halaman utama / dashboard kos Anda di sini
-    return render_template('index.html')
+    # Contoh data sementara untuk statistik dashboard (nanti bisa diambil dari database MySQL)
+    total_kamar = 10
+    kamar_terisi = 7
+    kamar_kosong = 3
+    
+    return render_template('index.html', 
+                           total_kamar=total_kamar, 
+                           kamar_terisi=kamar_terisi, 
+                           kamar_kosong=kamar_kosong)
+
+# Rute Kelola Kamar
+@app.route('/kamar')
+@login_required
+def kamar():
+    return "<h1>Halaman Kelola Kamar (Segera Dibangun)</h1><a href='/'>Kembali ke Dashboard</a>"
+
+# Rute Data Penghuni
+@app.route('/penghuni')
+@login_required
+def penghuni():
+    return "<h1>Halaman Data Penghuni (Segera Dibangun)</h1><a href='/'>Kembali ke Dashboard</a>"
+
+# Rute Keuangan
+@app.route('/keuangan')
+@login_required
+def keuangan():
+    return "<h1>Halaman Arus Keuangan (Segera Dibangun)</h1><a href='/'>Kembali ke Dashboard</a>"
 
 # Rute Login
 @app.route('/login', methods=['GET', 'POST'])
