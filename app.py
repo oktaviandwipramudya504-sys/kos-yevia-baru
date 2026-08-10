@@ -11,14 +11,28 @@ else:
     DATA_FILE = 'data_kos.json'
 
 def load_data():
+    # Pastikan folder /tmp tersedia jika berjalan di Vercel
+    if os.environ.get('VERCEL'):
+        tmp_dir = os.path.dirname(DATA_FILE)
+        if tmp_dir and not os.path.exists(tmp_dir):
+            try:
+                os.makedirs(tmp_dir, exist_ok=True)
+            except Exception:
+                pass
+
     if not os.path.exists(DATA_FILE):
         initial_data = {
             "kamar": [],
             "penghuni": [],
             "transaksi": []
         }
-        save_data(initial_data)
+        try:
+            with open(DATA_FILE, 'w') as f:
+                json.dump(initial_data, f, indent=4)
+        except Exception:
+            pass
         return initial_data
+        
     try:
         with open(DATA_FILE, 'r') as f:
             return json.load(f)
@@ -26,8 +40,16 @@ def load_data():
         return {"kamar": [], "penghuni": [], "transaksi": []}
 
 def save_data(data):
-    with open(DATA_FILE, 'w') as f:
-        json.dump(data, f, indent=4)
+    try:
+        if os.environ.get('VERCEL'):
+            tmp_dir = os.path.dirname(DATA_FILE)
+            if tmp_dir and not os.path.exists(tmp_dir):
+                os.makedirs(tmp_dir, exist_ok=True)
+                
+        with open(DATA_FILE, 'w') as f:
+            json.dump(data, f, indent=4)
+    except Exception as e:
+        print("Error saving data:", e)
 
 # --- DASHBOARD UTAMA ---
 @app.route('/')
