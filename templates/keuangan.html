@@ -113,7 +113,7 @@
                                 <td>Rp {{ "{:,}".format(item.jumlah).replace(',', '.') }}</td>
                                 <td>
                                     {% if item.bukti %}
-                                        <a href="{{ url_for('static', filename='uploads/' + item.bukti) }}" target="_blank" class="btn btn-sm btn-outline-secondary">Lihat Foto</a>
+                                        <a href="{{ item.bukti }}" target="_blank" class="btn btn-sm btn-outline-secondary">Lihat Foto</a>
                                     {% else %}
                                         <span class="text-muted">-</span>
                                     {% endif %}
