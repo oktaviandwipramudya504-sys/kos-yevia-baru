@@ -204,27 +204,35 @@ def keuangan():
             file_content = file.read()
             encoded_content = base64.b64encode(file_content).decode("utf-8")
 
-            # Path penyimpanan di dalam repository GitHub
             path_in_repo = f"static/uploads/{filename}"
             url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{path_in_repo}"
 
+            # Cek apakah file sudah ada di repo (GitHub API butuh parameter 'sha' jika file sudah ada)
             headers = {
-                "Authorization": f"Bearer {GITHUB_TOKEN}",
-                "Accept": "vnd.github+json",
+                "Authorization": f"token {GITHUB_TOKEN}",
+                "Accept": "application/vnd.github.v3+json",
             }
+            
+            check_response = requests.get(url, headers=headers)
+            sha = None
+            if check_response.status_code == 200:
+                sha = check_response.json().get("sha")
 
             payload = {
                 "message": f"Upload otomatis bukti pembayaran {filename}",
                 "content": encoded_content,
                 "branch": BRANCH,
             }
+            if sha:
+                payload["sha"] = sha
 
             # Kirim ke GitHub API
             response = requests.put(url, json=payload, headers=headers)
 
             if response.status_code in [200, 201]:
-                # Gunakan URL absolut statis agar langsung mengarah ke file di branch main
-                image_url = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/main/{path_in_repo}"
+                image_url = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/{BRANCH}/{path_in_repo}"
+            else:
+                print(f"GAGAL UPLOAD GITHUB: {response.status_code} - {response.text}")
 
         new_entry = Keuangan(
             tanggal=tanggal,
