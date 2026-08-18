@@ -1,41 +1,52 @@
 import os
-import json
 from flask import Flask, render_template, request, redirect, url_for, session
+from flask_sqlalchemy import SQLAlchemy
 from functools import wraps
 
 app = Flask(__name__)
 app.secret_key = 'kunci_rahasia_kos_yevia_2026'
 
-# Cek apakah sedang berjalan di Vercel atau lokal
-if os.environ.get('VERCEL'):
-    UPLOAD_FOLDER = '/tmp/uploads'
-else:
-    UPLOAD_FOLDER = 'static/uploads'
+# Konfigurasi Database SQLite (Permanen di Disk Server)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///kos.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# Konfigurasi Folder Upload
+UPLOAD_FOLDER = 'static/uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Hanya buat folder jika direktori diizinkan (mencegah error Read-only di Vercel)
-try:
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-except Exception:
-    pass
+db = SQLAlchemy(app)
 
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "123"
 
-# Storage in-memory global yang aman untuk serverless Vercel
-IN_MEMORY_DB = {
-    "kamar": [],
-    "penghuni": [],
-    "keuangan": []
-}
+# --- MODEL DATABASE ---
+class Kamar(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nomor = db.Column(db.String(50), nullable=False)
+    status = db.Column(db.String(20), default='Kosong')
+    penghuni = db.Column(db.String(100), default='-')
+    harga = db.Column(db.String(50), nullable=False)
+    fasilitas = db.Column(db.Text, nullable=True)
 
-def load_data():
-    return IN_MEMORY_DB
+class Penghuni(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nama = db.Column(db.String(100), nullable=False)
+    kamar = db.Column(db.String(50), nullable=False)
+    telepon = db.Column(db.String(20), nullable=False)
+    masuk = db.Column(db.String(50), nullable=False)
 
-def save_data(data):
-    global IN_MEMORY_DB
-    IN_MEMORY_DB = data
+class Keuangan(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    tanggal = db.Column(db.String(50), nullable=False)
+    keterangan = db.Column(db.String(200), nullable=False)
+    tipe = db.Column(db.String(20), nullable=False) # Masuk / Keluar
+    jumlah = db.Column(db.Integer, nullable=False)
+    bukti = db.Column(db.String(200), nullable=True)
+
+# Buat database otomatis saat pertama kali dijalankan
+with app.app_context():
+    db.create_all()
 
 def login_required(f):
     @wraps(f)
@@ -63,133 +74,127 @@ def logout():
 @app.route('/')
 @login_required
 def index():
-    data = load_data()
-    total_kamar = len(data.get('kamar', []))
-    terisi = sum(1 for k in data.get('kamar', []) if k.get('status') == 'Terisi')
+    daftar_kamar = Kamar.query.all()
+    daftar_keuangan = Keuangan.query.all()
+    
+    total_kamar = len(daftar_kamar)
+    terisi = sum(1 for k in daftar_kamar if k.status == 'Terisi')
     kosong = total_kamar - terisi
-    return render_template('index.html', total=total_kamar, terisi=terisi, kosong=kosong)
+    
+    total_masuk = sum(x.jumlah for x in daftar_keuangan if x.tipe == 'Masuk')
+    total_keluar = sum(x.jumlah for x in daftar_keuangan if x.tipe == 'Keluar')
+    saldo_akhir = total_masuk - total_keluar
+
+    return render_template('index.html', total=total_kamar, terisi=terisi, kosong=kosong, saldo=saldo_akhir)
 
 @app.route('/kamar', methods=['GET', 'POST'])
 @login_required
 def kamar():
-    data = load_data()
     if request.method == 'POST':
-        nomor = request.form.get('nomor')
-        harga = request.form.get('harga')
-        fasilitas = request.form.get('fasilitas')
-        
-        new_kamar = {
-            "id": len(data['kamar']) + 1,
-            "nomor": nomor,
-            "status": "Kosong",
-            "penghuni": "-",
-            "harga": harga,
-            "fasilitas": fasilitas
-        }
-        data['kamar'].append(new_kamar)
-        save_data(data)
+        new_kamar = Kamar(
+            nomor=request.form.get('nomor'),
+            status="Kosong",
+            penghuni="-",
+            harga=request.form.get('harga'),
+            fasilitas=request.form.get('fasilitas')
+        )
+        db.session.add(new_kamar)
+        db.session.commit()
         return redirect(url_for('kamar'))
         
-    return render_template('kamar.html', daftar=data['kamar'])
+    daftar_kamar = Kamar.query.all()
+    return render_template('kamar.html', daftar=daftar_kamar)
 
 @app.route('/kamar/hapus/<int:kamar_id>')
 @login_required
 def hapus_kamar(kamar_id):
-    data = load_data()
-    data['kamar'] = [k for k in data['kamar'] if k['id'] != kamar_id]
-    save_data(data)
+    target = Kamar.query.get_or_404(kamar_id)
+    db.session.delete(target)
+    db.session.commit()
     return redirect(url_for('kamar'))
 
 @app.route('/penghuni', methods=['GET', 'POST'])
 @login_required
 def penghuni():
-    data = load_data()
     if request.method == 'POST':
         nama = request.form.get('nama')
         kamar_pilih = request.form.get('kamar')
-        telepon = request.form.get('telepon')
-        masuk = request.form.get('masuk')
         
-        new_penghuni = {
-            "id": len(data['penghuni']) + 1,
-            "nama": nama,
-            "kamar": kamar_pilih,
-            "telepon": telepon,
-            "masuk": masuk
-        }
-        data['penghuni'].append(new_penghuni)
+        new_penghuni = Penghuni(
+            nama=nama,
+            kamar=kamar_pilih,
+            telepon=request.form.get('telepon'),
+            masuk=request.form.get('masuk')
+        )
+        db.session.add(new_penghuni)
         
-        for k in data['kamar']:
-            if k['nomor'] == kamar_pilih:
-                k['status'] = 'Terisi'
-                k['penghuni'] = nama
-                
-        save_data(data)
+        # Update status kamar jadi Terisi
+        target_kamar = Kamar.query.filter_by(nomor=kamar_pilih).first()
+        if target_kamar:
+            target_kamar.status = 'Terisi'
+            target_kamar.penghuni = nama
+            
+        db.session.commit()
         return redirect(url_for('penghuni'))
         
-    return render_template('penghuni.html', daftar=data['penghuni'], kamar_list=data['kamar'])
+    daftar_penghuni = Penghuni.query.all()
+    kamar_list = Kamar.query.all()
+    return render_template('penghuni.html', daftar=daftar_penghuni, kamar_list=kamar_list)
 
 @app.route('/penghuni/hapus/<int:penghuni_id>')
 @login_required
 def hapus_penghuni(penghuni_id):
-    data = load_data()
-    target_penghuni = None
+    target_penghuni = Penghuni.query.get_or_404(penghuni_id)
     
-    for p in data['penghuni']:
-        if p.get('id') == penghuni_id:
-            target_penghuni = p
-            break
-            
-    if target_penghuni:
-        for k in data['kamar']:
-            if k['nomor'] == target_penghuni['kamar']:
-                k['status'] = 'Kosong'
-                k['penghuni'] = '-'
-                
-    data['penghuni'] = [p for p in data['penghuni'] if p.get('id') != penghuni_id]
-    save_data(data)
+    # Kembalikan status kamar jadi Kosong
+    target_kamar = Kamar.query.filter_by(nomor=target_penghuni.kamar).first()
+    if target_kamar:
+        target_kamar.status = 'Kosong'
+        target_kamar.penghuni = '-'
+        
+    db.session.delete(target_penghuni)
+    db.session.commit()
     return redirect(url_for('penghuni'))
 
 @app.route('/keuangan', methods=['GET', 'POST'])
 @login_required
 def keuangan():
-    data = load_data()
     if request.method == 'POST':
         tanggal = request.form.get('tanggal')
         keterangan = request.form.get('keterangan')
-        jumlah = request.form.get('jumlah')
+        tipe = request.form.get('tipe')
+        jumlah = int(request.form.get('jumlah', 0))
         file = request.files.get('bukti')
         
         filename = None
         if file and file.filename != '':
             filename = file.filename
-            try:
-                os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            except Exception:
-                pass
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
             
-        new_entry = {
-            "id": len(data['keuangan']) + 1,
-            "tanggal": tanggal,
-            "keterangan": keterangan,
-            "tipe": "Masuk",
-            "jumlah": jumlah,
-            "bukti": filename
-        }
-        
-        data['keuangan'].insert(0, new_entry)
-        save_data(data)
+        new_entry = Keuangan(
+            tanggal=tanggal,
+            keterangan=keterangan,
+            tipe=tipe,
+            jumlah=jumlah,
+            bukti=filename
+        )
+        db.session.add(new_entry)
+        db.session.commit()
         return redirect(url_for('keuangan'))
         
-    return render_template('keuangan.html', daftar=data['keuangan'])
+    daftar_keuangan = Keuangan.query.order_by(Keuangan.id.desc()).all()
+    total_masuk = sum(x.jumlah for x in daftar_keuangan if x.tipe == 'Masuk')
+    total_keluar = sum(x.jumlah for x in daftar_keuangan if x.tipe == 'Keluar')
+    saldo_akhir = total_masuk - total_keluar
+
+    return render_template('keuangan.html', daftar=daftar_keuangan, masuk=total_masuk, keluar=total_keluar, saldo=saldo_akhir)
 
 @app.route('/keuangan/hapus/<int:keu_id>')
 @login_required
 def hapus_keuangan(keu_id):
-    data = load_data()
-    data['keuangan'] = [x for x in data['keuangan'] if x.get('id') != keu_id]
-    save_data(data)
+    target = Keuangan.query.get_or_404(keu_id)
+    db.session.delete(target)
+    db.session.commit()
     return redirect(url_for('keuangan'))
 
 if __name__ == '__main__':
