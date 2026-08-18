@@ -8,12 +8,13 @@ import requests
 app = Flask(__name__)
 app.secret_key = "kunci_rahasia_kos_yevia_2026"
 
-# Konfigurasi Database SQLite aman untuk Vercel (menggunakan /tmp jika di Vercel)
-if os.environ.get("VERCEL"):
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:////tmp/kos.db"
-else:
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///kos.db"
+# Konfigurasi Database PostgreSQL (Neon) dari Environment Variable Vercel
+# Menggunakan fallback ke SQLite lokal jika dijalankan offline di komputer
+db_url = os.environ.get("DATABASE_URL")
+if db_url and db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
 
+app.config["SQLALCHEMY_DATABASE_URI"] = db_url or "sqlite:///kos.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
@@ -55,7 +56,7 @@ class Keuangan(db.Model):
     bukti = db.Column(db.String(300), nullable=True)  # Menyimpan URL publik GitHub
 
 
-# Buat database otomatis saat pertama kali dijalankan
+# Buat database otomatis dalam application context saat aplikasi dijalankan
 with app.app_context():
     db.create_all()
 
@@ -166,6 +167,7 @@ def penghuni():
         return redirect(url_for("penghuni"))
 
     daftar_penghuni = Penghuni.query.all()
+    print("Daftar penghuni dari DB:", len(daftar_penghuni))
     kamar_list = Kamar.query.all()
     return render_template(
         "penghuni.html", daftar=daftar_penghuni, kamar_list=kamar_list
@@ -207,7 +209,6 @@ def keuangan():
             path_in_repo = f"static/uploads/{filename}"
             url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{path_in_repo}"
 
-            # Cek apakah file sudah ada di repo (GitHub API butuh parameter 'sha' jika file sudah ada)
             headers = {
                 "Authorization": f"token {GITHUB_TOKEN}",
                 "Accept": "application/vnd.github.v3+json",
@@ -226,7 +227,6 @@ def keuangan():
             if sha:
                 payload["sha"] = sha
 
-            # Kirim ke GitHub API
             response = requests.put(url, json=payload, headers=headers)
 
             if response.status_code in [200, 201]:
