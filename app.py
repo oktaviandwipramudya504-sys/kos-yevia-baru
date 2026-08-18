@@ -8,8 +8,12 @@ import requests
 app = Flask(__name__)
 app.secret_key = "kunci_rahasia_kos_yevia_2026"
 
-# Konfigurasi Database SQLite (Permanen di Disk Server)
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///kos.db"
+# Konfigurasi Database SQLite aman untuk Vercel (menggunakan /tmp jika di Vercel)
+if os.environ.get("VERCEL"):
+    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:////tmp/kos.db"
+else:
+    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///kos.db"
+
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
@@ -18,7 +22,6 @@ ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "123"
 
 # --- KONFIGURASI GITHUB API ---
-# Token aman menggunakan environment variable (Ambil otomatis dari sistem/Vercel)
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 REPO_OWNER = "oktaviandwipramudya504-sys"
 REPO_NAME = "kos-yevia-baru"
