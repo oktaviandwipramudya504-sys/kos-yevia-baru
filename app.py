@@ -200,7 +200,7 @@ def keuangan():
 
         image_url = None
         if file and file.filename != "":
-            filename = file.filename
+            filename = file.filename.replace(" ", "_")
             file_content = file.read()
             encoded_content = base64.b64encode(file_content).decode("utf-8")
 
@@ -223,8 +223,8 @@ def keuangan():
             response = requests.put(url, json=payload, headers=headers)
 
             if response.status_code in [200, 201]:
-                # Dapatkan URL publik gambar dari raw.githubusercontent.com
-                image_url = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/{BRANCH}/{path_in_repo}"
+                # Gunakan URL absolut statis agar langsung mengarah ke file di branch main
+                image_url = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/main/{path_in_repo}"
 
         new_entry = Keuangan(
             tanggal=tanggal,
